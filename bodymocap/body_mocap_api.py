@@ -1,10 +1,11 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 
 import cv2
+import os
 import sys
 import torch
 import numpy as np
-import pickle 
+import pickle
 from torchvision.transforms import Normalize
 
 from bodymocap.models import hmr, SMPL, SMPLX
@@ -32,18 +33,19 @@ class BodyMocap(object):
             smplModelPath = smpl_dir + '/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl'
             self.smpl = SMPL(smplModelPath, batch_size=1, create_transl=False).to(self.device)
             self.use_smplx = False
-            
-        #Load pre-trained neural network 
-        SMPL_MEAN_PARAMS = './extra_data/body_module/data_from_spin/smpl_mean_params.npz'
+
+        #Load pre-trained neural network
+        bodymocap_file_dir = os.path.dirname(os.path.abspath(__file__))
+        SMPL_MEAN_PARAMS = f'{bodymocap_file_dir}/../extra_data/body_module/data_from_spin/smpl_mean_params.npz'
         self.model_regressor = hmr(SMPL_MEAN_PARAMS).to(self.device)
         checkpoint = torch.load(regressor_checkpoint)
         self.model_regressor.load_state_dict(checkpoint['model'], strict=False)
         self.model_regressor.eval()
-        
+
 
     def regress(self, img_original, body_bbox_list):
         """
-            args: 
+            args:
                 img_original: original raw image (BGR order by using cv2.imread)
                 body_bbox: bounding box around the target: (minX, minY, width, height)
             outputs:
@@ -54,7 +56,7 @@ class BodyMocap(object):
                 pred_camera
                 bbox: [bbr[0], bbr[1],bbr[0]+bbr[2], bbr[1]+bbr[3]])
                 bboxTopLeft:  bbox top left (redundant)
-                boxScale_o2n: bbox scaling factor (redundant) 
+                boxScale_o2n: bbox scaling factor (redundant)
         """
         pred_output_list = list()
 
@@ -71,18 +73,21 @@ class BodyMocap(object):
             with torch.no_grad():
                 # model forward
                 pred_rotmat, pred_betas, pred_camera = self.model_regressor(norm_img.to(self.device))
+                # rotmat is (1, 24, 3, 3) (23 SMPL joints + global orientation)
+                # pred_betas: (1, 10)
+                # pred_camera: (1, 3)
 
                 #Convert rot_mat to aa since hands are always in aa
                 # pred_aa = rotmat3x3_to_angle_axis(pred_rotmat)
-                pred_aa = gu.rotation_matrix_to_angle_axis(pred_rotmat).cuda()
-                pred_aa = pred_aa.reshape(pred_aa.shape[0], 72)
+                pred_aa = gu.rotation_matrix_to_angle_axis(pred_rotmat).cuda() # (1 x 24 x 3)
+                pred_aa = pred_aa.reshape(pred_aa.shape[0], 72) # (1, 72)
                 smpl_output = self.smpl(
-                    betas=pred_betas, 
+                    betas=pred_betas,
                     body_pose=pred_aa[:,3:],
-                    global_orient=pred_aa[:,:3], 
+                    global_orient=pred_aa[:,:3],
                     pose2rot=True)
-                pred_vertices = smpl_output.vertices
-                pred_joints_3d = smpl_output.joints
+                pred_vertices = smpl_output.vertices #  (1, 10475, 3)
+                pred_joints_3d = smpl_output.joints # (1, 49, 3)
 
                 pred_vertices = pred_vertices[0].cpu().numpy()
 
@@ -101,15 +106,16 @@ class BodyMocap(object):
                 # Convert joint to original image space (X,Y are aligned to image)
                 pred_joints_3d = pred_joints_3d[0].cpu().numpy() # (1,49,3)
                 pred_joints_vis = pred_joints_3d[:,:3]  # (49,3)
-                pred_joints_vis_bbox = convert_smpl_to_bbox(pred_joints_vis, camScale, camTrans) 
+                pred_joints_vis_bbox = convert_smpl_to_bbox(pred_joints_vis, camScale, camTrans)
                 pred_joints_vis_img = convert_bbox_to_oriIm(
-                    pred_joints_vis_bbox, boxScale_o2n, bboxTopLeft, img_original.shape[1], img_original.shape[0]) 
+                    pred_joints_vis_bbox, boxScale_o2n, bboxTopLeft, img_original.shape[1], img_original.shape[0])
 
                 # Output
                 pred_output['img_cropped'] = img[:, :, ::-1]
                 pred_output['pred_vertices_smpl'] = smpl_output.vertices[0].cpu().numpy() # SMPL vertex in original smpl space
                 pred_output['pred_vertices_img'] = pred_vertices_img # SMPL vertex in image space
                 pred_output['pred_joints_img'] = pred_joints_vis_img # SMPL joints in image space
+                pred_output['pred_joints_smpl'] = pred_joints_vis # SMPL joints in original SMPL space
 
                 pred_aa_tensor = gu.rotation_matrix_to_angle_axis(pred_rotmat.detach().cpu()[0])
                 pred_output['pred_body_pose'] = pred_aa_tensor.cpu().numpy().reshape(1, 72) # (1, 72)
@@ -125,30 +131,30 @@ class BodyMocap(object):
                 if self.use_smplx:
                     img_center = np.array((img_original.shape[1], img_original.shape[0]) ) * 0.5
                     # right hand
-                    pred_joints = smpl_output.right_hand_joints[0].cpu().numpy()     
+                    pred_joints = smpl_output.right_hand_joints[0].cpu().numpy()
                     pred_joints_bbox = convert_smpl_to_bbox(pred_joints, camScale, camTrans)
                     pred_joints_img = convert_bbox_to_oriIm(
                         pred_joints_bbox, boxScale_o2n, bboxTopLeft, img_original.shape[1], img_original.shape[0])
                     pred_output['right_hand_joints_img_coord'] = pred_joints_img
-                    # left hand 
+                    # left hand
                     pred_joints = smpl_output.left_hand_joints[0].cpu().numpy()
                     pred_joints_bbox = convert_smpl_to_bbox(pred_joints, camScale, camTrans)
                     pred_joints_img = convert_bbox_to_oriIm(
                         pred_joints_bbox, boxScale_o2n, bboxTopLeft, img_original.shape[1], img_original.shape[0])
                     pred_output['left_hand_joints_img_coord'] = pred_joints_img
-                
+
                 pred_output_list.append(pred_output)
 
         return pred_output_list
-    
+
 
     def get_hand_bboxes(self, pred_body_list, img_shape):
         """
-            args: 
+            args:
                 pred_body_list: output of body regresion
                 img_shape: img_height, img_width
             outputs:
-                hand_bbox_list: 
+                hand_bbox_list:
         """
         hand_bbox_list = list()
         for pred_body in pred_body_list:

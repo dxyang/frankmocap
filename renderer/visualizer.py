@@ -24,7 +24,7 @@ class Visualizer(object):
 
     Args:
         reconstruction output
-        rawImg, bbox, 
+        rawImg, bbox,
         smpl_params (shape, pose, cams )
     """
 
@@ -77,8 +77,8 @@ class Visualizer(object):
     #         assert False
 
     def visualize(self,
-        input_img, 
-        hand_bbox_list = None, 
+        input_img,
+        hand_bbox_list = None,
         body_bbox_list = None,
         body_pose_list = None,
         raw_hand_bboxes = None,
@@ -112,11 +112,15 @@ class Visualizer(object):
         if pred_mesh_list is not None:
             rend_img = self.__render_pred_verts(input_img, pred_mesh_list)
             if rend_img is not None:
-                res_img = np.concatenate((res_img, rend_img), axis=1)
+                try:
+                    res_img = np.concatenate((res_img, rend_img), axis=1)
+                except:
+                    import pdb; pdb.set_trace()
             # res_img = rend_img
-        
+
+
         return res_img
-        
+
     def __render_pred_verts(self, img_original, pred_mesh_list):
 
         res_img = img_original.copy()
@@ -142,15 +146,15 @@ class Visualizer(object):
         return overlaidImg
 
 
-    def _visualize_screenless_naive(self, meshList, skelList=None, body_bbox_list=None, img_original=None, show_side = False, vis=False, maxHeight = 1080):
-        
+    def _visualize_screenless_naive(self, meshList, skelList=None, body_bbox_list=None, img_original=None, show_side = False, vis=False, maxHeight = 1440):
+
         """
             args:
                 meshList: list of {'ver': pred_vertices, 'f': smpl.faces}
                 skelList: list of [JointNum*3, 1]       (where 1 means num. of frames in glviewer)
-                bbr_list: list of [x,y,w,h] 
+                bbr_list: list of [x,y,w,h]
             output:
-                #Rendered images are saved in 
+                #Rendered images are saved in
                 self.renderout['render_camview']
                 self.renderout['render_sideview']
 
@@ -166,9 +170,9 @@ class Visualizer(object):
 
             blank = np.ones(img_original.shape, dtype=np.uint8)*255       #generate blank image
             self.renderout['render_sideview'] = blank
-            
+
             return
-        
+
         if body_bbox_list is not None:
             for bbr in body_bbox_list:
                 viewer2D.Vis_Bbox(img_original,bbr)
@@ -208,7 +212,7 @@ class Visualizer(object):
         self.renderer.setWorldCenterBySceneCenter()
         self.renderer.setCameraViewMode("cam")
         # self.renderer.setViewportSize(img_original_resized.shape[1], img_original_resized.shape[0])
-                
+
         self.renderer.display()
         renderImg = self.renderer.get_screen_color_ibgr()
 
@@ -217,7 +221,7 @@ class Visualizer(object):
 
         ###Render Side View
         if show_side:
-            self.renderer.setCameraViewMode("free")     
+            self.renderer.setCameraViewMode("free")
             self.renderer.setViewAngle(90,20)
             self.renderer.showBackground(False)
             self.renderer.setViewportSize(img_original_resized.shape[1], img_original_resized.shape[0])
@@ -226,7 +230,7 @@ class Visualizer(object):
 
             if vis:
                 viewer2D.ImShow(sideImg,waitTime=0,name="sideview")
-        
+
         # sideImg = cv2.resize(sideImg, (renderImg.shape[1], renderImg.shape[0]) )
         self.renderout  ={}
         self.renderout['render_camview'] = renderImg
@@ -240,7 +244,7 @@ class Visualizer(object):
             args:
                 meshList: list of {'ver': pred_vertices, 'f': smpl.faces}
                 skelList: list of [JointNum*3, 1]       (where 1 means num. of frames in glviewer)
-                bbr_list: list of [x,y,w,h] 
+                bbr_list: list of [x,y,w,h]
         """
         if body_bbox_list is not None:
             for bbr in body_bbox_list:
@@ -271,14 +275,14 @@ class Visualizer(object):
                 glViewer.show_SMPL(bSaveToFile = True, bResetSaveImgCnt = False, countImg = True, zoom=1108, mode = 'youtube')
                 # glViewer.setSaveFolderName(g_renderDir)
                 # glViewer.show(0)
-    
+
 
     def _visualize_gui_smplpose_basic(self, smpl, poseParamList, shapeParamList =None,  colorList = None, isRotMat = False, scalingFactor=300, waittime =1):
         '''
             Visualize SMPL vertices from SMPL pose parameters
             This can be used as a quick visualize function if you have a pose parameters
 
-            args: 
+            args:
                 poseParamList: list of pose parameters (numpy array) in angle axis (72,) by default  or rot matrix (24,3,3) with isRotMat==True
                 shapeParamList: (optional) list of shape parameters (numpy array) (10,). If not provided, use a zero vector
                 colorList: (optional) list of color RGB values e.g., (255,0,0) for red
@@ -287,7 +291,7 @@ class Visualizer(object):
         default_color = glViewer.g_colorSet['eft']
         meshList =[]
         for i, poseParam in enumerate(poseParamList):
-            
+
             if shapeParamList is not None:
                 shapeParam = torch.from_numpy(shapeParamList[i][np.newaxis,:])
             else:
@@ -304,12 +308,12 @@ class Visualizer(object):
 
             else:  #angle axis
                 pred_output = smpl(betas=shapeParam, body_pose=poseParam_tensor[:,3:], global_orient=poseParam_tensor[:,:3], pose2rot=True)
-        
+
             nn_vertices = pred_output.vertices.detach()[0].numpy() * scalingFactor
             tempMesh = {'ver': nn_vertices, 'f':  smpl.faces, 'color':color}
             meshList.append(tempMesh)
-            
-        
+
+
         # glViewer.setRenderOutputSize(inputImg.shape[1],inputImg.shape[0])
         # glViewer.setBackgroundTexture(img_original)
         glViewer.g_bShowFloor = True

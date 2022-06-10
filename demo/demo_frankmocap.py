@@ -27,6 +27,9 @@ from integration.copy_and_paste import integration_copy_paste
 import renderer.image_utils as imu
 from renderer.viewer2D import ImShow
 
+sys.path.append("/home/dxyang/code/hands")
+from utils.meshcat_viewer import get_visualizer, draw_body_skeleton, draw_point_cloud, draw_hand_skeleton
+
 
 def __filter_bbox_list(body_bbox_list, hand_bbox_list, single_person):
     # (to make the order as consistent as possible without tracking)
@@ -43,11 +46,12 @@ def __filter_bbox_list(body_bbox_list, hand_bbox_list, single_person):
 
 
 def run_regress(
-    args, img_original_bgr, 
+    args, img_original_bgr,
     body_bbox_list, hand_bbox_list, bbox_detector,
     body_mocap, hand_mocap
 ):
-    cond1 = len(body_bbox_list) > 0 and len(hand_bbox_list) > 0
+    cond1 = len(body_bbox_list) > 0 and len(hand_bbox_list) > 0 # dxy: this should be false
+    assert not cond1
     cond2 = not args.frankmocap_fast_mode
 
     # use pre-computed bbox or use slow detection mode
@@ -57,13 +61,13 @@ def run_regress(
             body_pose_list, body_bbox_list, hand_bbox_list, _ = \
                 bbox_detector.detect_hand_bbox(img_original_bgr.copy())
         else:
+            assert False
             print("Use pre-computed bounding boxes")
         assert len(body_bbox_list) == len(hand_bbox_list)
-
-        if len(body_bbox_list) < 1: 
+        if len(body_bbox_list) < 1:
             return list(), list(), list()
 
-        # sort the bbox using bbox size 
+        # sort the bbox using bbox size
         # only keep on bbox if args.single_person is set
         body_bbox_list, hand_bbox_list = __filter_bbox_list(
             body_bbox_list, hand_bbox_list, args.single_person)
@@ -76,18 +80,19 @@ def run_regress(
         assert len(pred_hand_list) == len(pred_body_list)
 
     else:
+        assert False
         _, body_bbox_list = bbox_detector.detect_body_bbox(img_original_bgr.copy())
 
-        if len(body_bbox_list) < 1: 
+        if len(body_bbox_list) < 1:
             return list(), list(), list()
 
-        # sort the bbox using bbox size 
+        # sort the bbox using bbox size
         # only keep on bbox if args.single_person is set
         hand_bbox_list = [None, ] * len(body_bbox_list)
         body_bbox_list, _ = __filter_bbox_list(
             body_bbox_list, hand_bbox_list, args.single_person)
 
-        # body regression first 
+        # body regression first
         pred_body_list = body_mocap.regress(img_original_bgr, body_bbox_list)
         assert len(body_bbox_list) == len(pred_body_list)
 
@@ -98,12 +103,12 @@ def run_regress(
         # hand regression
         pred_hand_list = hand_mocap.regress(
             img_original_bgr, hand_bbox_list, add_margin=True)
-        assert len(hand_bbox_list) == len(pred_hand_list) 
+        assert len(hand_bbox_list) == len(pred_hand_list)
 
     # integration by copy-and-paste
     integral_output_list = integration_copy_paste(
         pred_body_list, pred_hand_list, body_mocap.smpl, img_original_bgr.shape)
-    
+
     return body_bbox_list, hand_bbox_list, integral_output_list
 
 
@@ -134,7 +139,7 @@ def run_frank_mocap(args, bbox_detector, body_mocap, hand_mocap, visualizer):
             else:
                 img_original_bgr = None
 
-        elif input_type == 'video':      
+        elif input_type == 'video':
             _, img_original_bgr = input_data.read()
             if video_frame < cur_frame:
                 video_frame += 1
@@ -146,7 +151,7 @@ def run_frank_mocap(args, bbox_detector, body_mocap, hand_mocap, visualizer):
                 if args.save_frame:
                     gnu.make_subdir(image_path)
                     cv2.imwrite(image_path, img_original_bgr)
-        
+
         elif input_type == 'webcam':
             _, img_original_bgr = input_data.read()
 
@@ -165,26 +170,53 @@ def run_frank_mocap(args, bbox_detector, body_mocap, hand_mocap, visualizer):
 
         cur_frame +=1
         if img_original_bgr is None or cur_frame > args.end_frame:
-            break   
+            break
         print("--------------------------------------")
-        
+
         # bbox detection
         if not load_bbox:
             body_bbox_list, hand_bbox_list = list(), list()
-        
+
         # regression (includes integration)
         body_bbox_list, hand_bbox_list, pred_output_list = run_regress(
-            args, img_original_bgr, 
+            args, img_original_bgr,
             body_bbox_list, hand_bbox_list, bbox_detector,
             body_mocap, hand_mocap)
 
         # save the obtained body & hand bbox to json file
-        if args.save_bbox_output: 
+        if args.save_bbox_output:
             demo_utils.save_info_to_json(args, image_path, body_bbox_list, hand_bbox_list)
 
-        if len(body_bbox_list) < 1: 
+        if len(body_bbox_list) < 1:
             print(f"No body deteced: {image_path}")
             continue
+
+        # for pred_output in pred_output_list:
+        #     for k, v in pred_output.items():
+        #         if isinstance(v, np.ndarray):
+        #             print(f"{k}: {pred_output[k].shape}")
+        #         else:
+        #             print(f"{k}: {pred_output[k]}")
+
+        vis = get_visualizer()
+
+        # point cloud of vertices
+        # verts = pred_output_list[0]['pred_vertices_img'].T / 1000.0 # 3 x n (divide by 1000 because pixel space)
+        # draw_point_cloud(vis, 'pred_vertices_img', verts, colors=verts)
+
+        verts2 = pred_output_list[0]['pred_vertices_smpl'].T # 3 x n
+        draw_point_cloud(vis, 'pred_vertices_smpl', verts2, colors=verts2)
+
+        # skeleton
+        # skeleton = pred_output_list[0]['pred_body_joints_img'].T / 1000.0 # 3 x n (divide by 1000 because pixel space)
+        # draw_body_skeleton(vis, skeleton)
+        skeleton = pred_output_list[0]['pred_body_joints_smpl'].T # 3 x n
+        draw_body_skeleton(vis, skeleton)
+
+        left_hand_skeleton = pred_output_list[0]['pred_lhand_joints_smpl'].T # 3 x n
+        right_hand_skeleton = pred_output_list[0]['pred_rhand_joints_smpl'].T # 3 x n
+        draw_hand_skeleton(vis, left_hand_skeleton, is_left_hand=True)
+        draw_hand_skeleton(vis, right_hand_skeleton, is_left_hand=False)
 
         pred_mesh_list = demo_utils.extract_mesh_from_output(pred_output_list)
 
@@ -194,11 +226,13 @@ def run_frank_mocap(args, bbox_detector, body_mocap, hand_mocap, visualizer):
             pred_mesh_list = pred_mesh_list,
             body_bbox_list = body_bbox_list,
             hand_bbox_list = hand_bbox_list)
-        
+
        # show result in the screen
         if not args.no_display:
             res_img = res_img.astype(np.uint8)
             ImShow(res_img)
+
+        import pdb; pdb.set_trace()
 
         # save result image
         if args.out_dir is not None:
@@ -228,7 +262,7 @@ def main():
     assert torch.cuda.is_available(), "Current version only supports GPU"
 
     hand_bbox_detector =  HandBboxDetector('third_view', device)
-    
+
     #Set Mocap regressor
     body_mocap = BodyMocap(args.checkpoint_body_smplx, args.smpl_dir, device = device, use_smplx= True)
     hand_mocap = HandMocap(args.checkpoint_hand, args.smpl_dir, device = device)

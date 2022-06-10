@@ -20,14 +20,15 @@ class HandMocap:
                                                (0.5, 0.5, 0.5))]
         self.normalize_transform = transforms.Compose(transform_list)
 
-        #Load Hand network 
+        #Load Hand network
         self.opt = TestOptions().parse([])
 
         #Default options
         self.opt.single_branch = True
         self.opt.main_encoder = "resnet50"
         # self.opt.data_root = "/home/hjoo/dropbox/hand_yu/data/"
-        self.opt.model_root = "./extra_data"
+        handmocap_file_dir = os.path.dirname(os.path.abspath(__file__))
+        self.opt.model_root = f"{handmocap_file_dir}/../extra_data"
         self.opt.smplx_model_file = os.path.join(smpl_dir,'SMPLX_NEUTRAL.pkl')
 
         self.opt.batchSize = 1
@@ -62,7 +63,7 @@ class HandMocap:
             margin = (height-width) // 2
             min_x = max(min_x-margin, 0)
             max_x = min(max_x+margin, ori_width)
-        
+
         # add additional margin
         if add_margin:
             margin = int(0.3 * (max_y-min_y)) # if use loose crop, change 0.3 to 1.0
@@ -83,12 +84,12 @@ class HandMocap:
 
         ratio = final_size / new_size
         return new_img, ratio, (min_x, min_y, max_x-min_x, max_y-min_y)
-  
+
 
     def __process_hand_bbox(self, raw_image, hand_bbox, hand_type, add_margin=True):
         """
-        args: 
-            original image, 
+        args:
+            original image,
             bbox: (x0, y0, w, h)
             hand_type ("left_hand" or "right_hand")
             add_margin: If the input hand bbox is a tight bbox, then set this value to True, else False
@@ -103,10 +104,10 @@ class HandMocap:
         assert hand_type in ['left_hand', 'right_hand']
         img_cropped, bbox_scale_ratio, bbox_processed = \
             self.__pad_and_resize(raw_image, hand_bbox, add_margin)
-        
+
         #horizontal Flip to make it as right hand
         if hand_type=='left_hand':
-            img_cropped = np.ascontiguousarray(img_cropped[:, ::-1,:], img_cropped.dtype) 
+            img_cropped = np.ascontiguousarray(img_cropped[:, ::-1,:], img_cropped.dtype)
         else:
             assert hand_type == 'right_hand'
 
@@ -118,7 +119,7 @@ class HandMocap:
 
     def regress(self, img_original, hand_bbox_list, add_margin=False):
         """
-            args: 
+            args:
                 img_original: original raw image (BGR order by using cv2.imread)
                 hand_bbox_list: [
                     dict(
@@ -130,7 +131,7 @@ class HandMocap:
                 add_margin: whether to do add_margin given the hand bbox
             outputs:
                 To be filled
-            Note: 
+            Note:
                 Output element can be None. This is to keep the same output size with input bbox
         """
         pred_output_list = list()
@@ -154,8 +155,8 @@ class HandMocap:
 
             for hand_type in hand_bboxes:
                 bbox = hand_bboxes[hand_type]
-                
-                if bbox is None: 
+
+                if bbox is None:
                     continue
                 else:
                     img_cropped, norm_img, bbox_scale_ratio, bbox_processed = \
@@ -202,7 +203,7 @@ class HandMocap:
                         cam_trans = cam[1:]
                         vert_smplcoord = pred_verts_origin.copy()
                         joints_smplcoord = pred_joints.copy()
-                        
+
                         vert_bboxcoord = convert_smpl_to_bbox(
                             vert_smplcoord, cam_scale, cam_trans, bAppTransFirst=True) # SMPL space -> bbox space
                         joints_bboxcoord = convert_smpl_to_bbox(
@@ -212,17 +213,17 @@ class HandMocap:
                         hand_bboxTopLeft = pred_output[hand_type]['bbox_top_left']
 
                         vert_imgcoord = convert_bbox_to_oriIm(
-                                vert_bboxcoord, hand_boxScale_o2n, hand_bboxTopLeft, 
-                                img_original.shape[1], img_original.shape[0]) 
+                                vert_bboxcoord, hand_boxScale_o2n, hand_bboxTopLeft,
+                                img_original.shape[1], img_original.shape[0])
                         pred_output[hand_type]['pred_vertices_img'] = vert_imgcoord
 
                         joints_imgcoord = convert_bbox_to_oriIm(
-                                joints_bboxcoord, hand_boxScale_o2n, hand_bboxTopLeft, 
-                                img_original.shape[1], img_original.shape[0]) 
+                                joints_bboxcoord, hand_boxScale_o2n, hand_bboxTopLeft,
+                                img_original.shape[1], img_original.shape[0])
                         pred_output[hand_type]['pred_joints_img'] = joints_imgcoord
 
             pred_output_list.append(pred_output)
             hand_bbox_list_processed.append(hand_bboxes_processed)
-        
+
         assert len(hand_bbox_list_processed) == len(hand_bbox_list)
         return pred_output_list

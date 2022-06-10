@@ -27,7 +27,7 @@ def setup_render_out(out_dir):
         res_subdirs = \
             [outputFileName, overlaidImageFolder, sideImageFolder, mergedImageFolder]
         return res_subdirs
-    
+
     else:
         return None
 
@@ -64,7 +64,7 @@ def __video_setup(args):
 
     if args.save_frame:
         frame_dir = osp.join(args.out_dir, "frames")
-        gnu.build_dir(frame_dir)    
+        gnu.build_dir(frame_dir)
 
     render_out_dir = osp.join(args.out_dir, "rendered")
     gnu.build_dir(render_out_dir)
@@ -86,18 +86,18 @@ def __img_seq_setup(args):
 
 def setup_input(args):
     """
-    Input type can be 
+    Input type can be
         an image file
         a video file
         a folder with image files
         a folder with bbox (json) files
         "webcam"
-    
+
     """
     image_exts = ('jpg', 'png', 'jpeg', 'bmp')
     video_exts = ('mp4', 'avi', 'mov')
 
-    # get type of input 
+    # get type of input
     input_type = __get_input_type(args)
 
     if input_type =='video':
@@ -107,18 +107,19 @@ def setup_input(args):
         return input_type, cap
 
     elif input_type =='webcam':
+        args.seq_name = "webcam"
         cap = cv2.VideoCapture(0)       #webcam input
         return input_type, cap
 
     elif input_type =='image_dir':
-        image_list = gnu.get_all_files(args.input_path, image_exts, "relative") 
+        image_list = gnu.get_all_files(args.input_path, image_exts, "relative")
         image_list = [ osp.join(args.input_path, image_name) for image_name in image_list ]
         __img_seq_setup(args)
         return input_type, image_list
 
     elif input_type =='bbox_dir':
         __img_seq_setup(args)
-        json_files = gnu.get_all_files(args.input_path, '.json', "relative") 
+        json_files = gnu.get_all_files(args.input_path, '.json', "relative")
         input_data = list()
         for json_file in json_files:
             json_path = osp.join(args.input_path, json_file)
@@ -155,8 +156,8 @@ def extract_mesh_from_output(pred_output_list):
                     faces = faces
                 ))
     return pred_mesh_list
-                
-    
+
+
 def load_info_from_json(json_path):
     data = gnu.load_json(json_path)
     # image path
@@ -191,7 +192,7 @@ def save_info_to_json(args, image_path, body_bbox_list, hand_bbox_list):
     saved_data = dict()
 
     # image_path
-    saved_data['image_path'] = image_path 
+    saved_data['image_path'] = image_path
 
     # body_bbox_list
     saved_body_bbox_list = list()
@@ -225,7 +226,7 @@ def save_info_to_json(args, image_path, body_bbox_list, hand_bbox_list):
 
 
 def save_pred_to_pkl(
-    args, demo_type, image_path, 
+    args, demo_type, image_path,
     body_bbox_list, hand_bbox_list, pred_output_list):
 
     smpl_type = 'smplx' if args.use_smplx else 'smpl'
@@ -295,7 +296,7 @@ def save_pred_to_pkl(
     gnu.make_subdir(pkl_path)
     gnu.save_pkl(pkl_path, saved_data)
     print(f"Prediction saved: {pkl_path}")
- 
+
 
 def save_res_img(out_dir, image_path, res_img):
     out_dir = osp.join(out_dir, "rendered")
@@ -304,7 +305,7 @@ def save_res_img(out_dir, image_path, res_img):
     res_img_path = osp.join(out_dir, img_name)
     gnu.make_subdir(res_img_path)
     cv2.imwrite(res_img_path, res_img)
-    print(f"Visualization saved: {res_img_path}")
+    # print(f"Visualization saved: {res_img_path}")
 
 
 def gen_video_out(out_dir, seq_name):

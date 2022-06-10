@@ -6,7 +6,7 @@ class DemoOptions():
 
     def __init__(self):
         parser = argparse.ArgumentParser()
-        
+
         # parser.add_argument('--checkpoint', required=False, default=default_checkpoint, help='Path to pretrained checkpoint')
         default_checkpoint_body_smpl ='./extra_data/body_module/pretrained_weights/2020_05_31-00_50_43-best-51.749683916568756.pt'
         parser.add_argument('--checkpoint_body_smpl', required=False, default=default_checkpoint_body_smpl, help='Path to pretrained checkpoint')
@@ -46,19 +46,32 @@ class DemoOptions():
         parser.add_argument('--view_type', type=str, default='third_view', choices=['third_view', 'ego_centric'],
             help = "The view type of input. It could be ego-centric (such as epic kitchen) or third view")
         parser.add_argument('--crop_type', type=str, default='no_crop', choices=['hand_crop', 'no_crop'],
-            help = """ 'hand_crop' means the hand are central cropped in input. (left hand should be flipped to right). 
+            help = """ 'hand_crop' means the hand are central cropped in input. (left hand should be flipped to right).
                         'no_crop' means hand detection is required to obtain hand bbox""")
-        
+
         # Whole motion capture (FrankMocap) specific options
         parser.add_argument('--frankmocap_fast_mode', action='store_true', help="Use fast hand detection mode for whole body motion capture (frankmocap)")
 
         # renderer
-        parser.add_argument("--renderer_type", type=str, default="opengl", 
+        parser.add_argument("--renderer_type", type=str, default="opengl",
             choices=['pytorch3d', 'opendr', 'opengl_gui', 'opengl'], help="type of renderer to use")
 
         self.parser = parser
-    
+
 
     def parse(self):
         self.opt = self.parser.parse_args()
+        return self.opt
+
+    def get_default(self, video_path: str = None, is_third_person: bool = True):
+        self.opt = self.parser.parse_args(args=None)
+        self.opt.checkpoint_body_smpl = './frankmocap/extra_data/body_module/pretrained_weights/2020_05_31-00_50_43-best-51.749683916568756.pt'
+        self.opt.checkpoint_body_smplx = './frankmocap/extra_data/body_module/pretrained_weights/smplx-03-28-46060-w_spin_mlc3d_46582-2089_2020_03_28-21_56_16.pt'
+        self.opt.checkpoint_hand = './frankmocap/extra_data/hand_module/pretrained_weights/pose_shape_best.pth'
+        self.opt.smpl_dir = './frankmocap/extra_data/smpl/'
+        self.opt.use_smplx = True
+        self.opt.single_person = True
+        self.opt.view_type = 'third_view' if is_third_person else 'ego_centric'
+        self.opt.input_path = video_path
+        self.opt.out_dir = './trash'
         return self.opt

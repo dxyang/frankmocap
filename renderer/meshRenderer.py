@@ -19,6 +19,7 @@ _glut_window = None
     render.show_once()
 '''
 
+renderer_file_dir = os.path.dirname(os.path.abspath(__file__))
 class meshRenderer(glRenderer):
 
     def __init__(self, width=1600, height=1200, name='GL Renderer',
@@ -30,9 +31,9 @@ class meshRenderer(glRenderer):
 
         self.render_mode = render_mode
         self.program_files ={}
-        self.program_files['color'] = ['renderer/shaders/simple140.fs', 'renderer/shaders/simple140.vs']
-        self.program_files['normal'] = ['renderer/shaders/normal140.fs', 'renderer/shaders/normal140.vs']
-        self.program_files['geo'] = ['renderer/shaders/colorgeo140.fs', 'renderer/shaders/colorgeo140.vs']
+        self.program_files['color'] = [f'{renderer_file_dir}/shaders/simple140.fs', f'{renderer_file_dir}/shaders/simple140.vs']
+        self.program_files['normal'] = [f'{renderer_file_dir}/shaders/normal140.fs', f'{renderer_file_dir}/shaders/normal140.vs']
+        self.program_files['geo'] = [f'{renderer_file_dir}/shaders/colorgeo140.fs', f'{renderer_file_dir}/shaders/colorgeo140.vs']
 
         glRenderer.__init__(self, width, height, name, self.program_files[render_mode], color_size, ms_rate)
 
@@ -42,7 +43,7 @@ class meshRenderer(glRenderer):
         """
         if self.render_mode == render_mode:
             return
-        
+
         self.render_mode = render_mode
         self.initShaderProgram(self.program_files[render_mode])
 
@@ -55,7 +56,7 @@ class meshRenderer(glRenderer):
 
         glColor3f(1,1,0)
         glUseProgram(self.program)
-        
+
         mvMat = glGetFloatv(GL_MODELVIEW_MATRIX)
         pMat = glGetFloatv(GL_PROJECTION_MATRIX)
         # mvpMat = pMat*mvMat
@@ -82,7 +83,7 @@ class meshRenderer(glRenderer):
         glBindBuffer(GL_ARRAY_BUFFER, self.color_buffer)
         glEnableVertexAttribArray(2)
         glVertexAttribPointer(2, 3, GL_DOUBLE, GL_FALSE, 0, None)
-        
+
 
         if True:#self.meshindex_data:
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.index_buffer)           #Note "GL_ELEMENT_ARRAY_BUFFER" instead of GL_ARRAY_BUFFER

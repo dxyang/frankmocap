@@ -7,6 +7,7 @@ import cv2
 import json
 import torch
 from torchvision.transforms import Normalize
+import zmq
 
 from demo.demo_options import DemoOptions
 import mocap_utils.general_utils as gnu
@@ -19,11 +20,13 @@ import renderer.image_utils as imu
 from renderer.viewer2D import ImShow
 import time
 
+sys.path.append("/home/dxyang/code/hands")
+from utils.meshcat_viewer import get_visualizer, draw_hand_skeleton, draw_point_cloud
 
 def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
     #Set up input data (images or webcam)
     input_type, input_data = demo_utils.setup_input(args)
- 
+
     assert args.out_dir is not None, "Please specify output dir to store the results"
     cur_frame = args.start_frame
     video_frame = 0
@@ -50,7 +53,7 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
             else:
                 img_original_bgr = None
 
-        elif input_type == 'video':      
+        elif input_type == 'video':
             _, img_original_bgr = input_data.read()
             if video_frame < cur_frame:
                 video_frame += 1
@@ -62,7 +65,7 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
                 if args.save_frame:
                     gnu.make_subdir(image_path)
                     cv2.imwrite(image_path, img_original_bgr)
-        
+
         elif input_type == 'webcam':
             _, img_original_bgr = input_data.read()
 
@@ -81,7 +84,7 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
 
         cur_frame +=1
         if img_original_bgr is None or cur_frame > args.end_frame:
-            break   
+            break
         print("--------------------------------------")
 
         # bbox detection
@@ -94,13 +97,13 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
             body_pose_list = None
             raw_hand_bboxes = None
             hand_bbox_list = [ dict(right_hand = np.array([0, 0, img_w, img_h])) ]
-        else:            
+        else:
             # Input images has other body part or hand not cropped.
             # Use hand detection model & body detector for hand detection
             assert args.crop_type == 'no_crop'
             detect_output = bbox_detector.detect_hand_bbox(img_original_bgr.copy())
             body_pose_list, body_bbox_list, hand_bbox_list, raw_hand_bboxes = detect_output
-        
+
         # save the obtained body & hand bbox to json file
         if args.save_bbox_output:
             demo_utils.save_info_to_json(args, image_path, body_bbox_list, hand_bbox_list)
@@ -108,20 +111,83 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
         if len(hand_bbox_list) < 1:
             print(f"No hand deteced: {image_path}")
             continue
-    
+
         # Hand Pose Regression
         pred_output_list = hand_mocap.regress(
                 img_original_bgr, hand_bbox_list, add_margin=True)
         assert len(hand_bbox_list) == len(body_bbox_list)
         assert len(body_bbox_list) == len(pred_output_list)
 
+        # debug
+        # for pred_output in pred_output_list:
+        #     for hand, val in pred_output.items():
+        #         print(f"-----hand: {hand}")
+        #         for k, v in val.items():
+        #             if isinstance(v, np.ndarray):
+        #                 print(f"{k}: {val[k].shape}")
+        #             else:
+        #                 print(f"{k}: {val[k]}")
+
+        vis = get_visualizer(zmq_url='tcp://127.0.0.1:6001')
+
+        try:
+            if pred_output_list[0]['left_hand'] is not None:
+                # point cloud of vertices
+                lh_verts_smpl = pred_output_list[0]['left_hand']['pred_vertices_smpl'].T # 3 x n
+                lh_verts_img = pred_output_list[0]['left_hand']['pred_vertices_img'].T / 1000.0 # 3 x n
+
+                # skeleton
+                lh_joints_smpl = pred_output_list[0]['left_hand']['pred_joints_smpl'].T # 3 x 21
+                lh_joints_img = pred_output_list[0]['left_hand']['pred_joints_img'].T / 1000.0 # 3 x 21
+            else:
+                # point cloud of vertices
+                lh_verts_smpl = np.zeros((3, 0)) # 3 x n
+                lh_verts_img = np.zeros((3, 0)) # 3 x n
+
+                # skeleton
+                lh_joints_smpl = np.zeros((3, 21))
+                lh_joints_img = np.zeros((3, 21))
+        except:
+            import pdb; pdb.set_trace()
+
+        draw_point_cloud(vis, 'lh_verts_smpl', lh_verts_smpl, colors=lh_verts_smpl)
+        draw_point_cloud(vis, 'lh_verts_img', lh_verts_img, colors=lh_verts_img)
+        draw_hand_skeleton(vis, lh_joints_smpl, is_left_hand=True)
+        draw_hand_skeleton(vis, lh_joints_img, is_left_hand=True, dbg=True)
+
+        try:
+            if pred_output_list[0]['right_hand'] is not None:
+                # point cloud of vertices
+                rh_verts_smpl = pred_output_list[0]['right_hand']['pred_vertices_smpl'].T  # 3 x n
+                rh_verts_img = pred_output_list[0]['right_hand']['pred_vertices_img'].T / 1000.0  # 3 x n
+
+                # skeleton
+                rh_joints_smpl = pred_output_list[0]['right_hand']['pred_joints_smpl'].T # 3 x n
+                rh_joints_img = pred_output_list[0]['right_hand']['pred_joints_img'].T / 1000.0  # 3 x n
+
+            else:
+                # point cloud of vertices
+                rh_verts_smpl = np.zeros((3, 0)) # 3 x n
+                rh_verts_img = np.zeros((3, 0)) # 3 x n
+
+                # skeleton
+                rh_joints_smpl = np.zeros((3, 21)) # 3 x n
+                rh_joints_img = np.zeros((3, 21)) # 3 x n
+        except:
+            import pdb; pdb.set_trace()
+
+        draw_point_cloud(vis, 'rh_verts_smpl', rh_verts_smpl, colors=rh_verts_smpl)
+        draw_point_cloud(vis, 'rh_verts_img', rh_verts_img, colors=rh_verts_img)
+        draw_hand_skeleton(vis, rh_joints_smpl, is_left_hand=False)
+        draw_hand_skeleton(vis, rh_joints_img, is_left_hand=False, dbg=True)
+
         # extract mesh for rendering (vertices in image space and faces) from pred_output_list
         pred_mesh_list = demo_utils.extract_mesh_from_output(pred_output_list)
 
         # visualize
         res_img = visualizer.visualize(
-            img_original_bgr, 
-            pred_mesh_list = pred_mesh_list, 
+            img_original_bgr,
+            pred_mesh_list = pred_mesh_list,
             hand_bbox_list = hand_bbox_list)
 
         # show result in the screen
@@ -140,7 +206,8 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
                 args, demo_type, image_path, body_bbox_list, hand_bbox_list, pred_output_list)
 
         print(f"Processed : {image_path}")
-        
+        import pdb; pdb.set_trace()
+
     #save images as a video
     if not args.no_video_out and input_type in ['video', 'webcam']:
         demo_utils.gen_video_out(args.out_dir, args.seq_name)
@@ -150,7 +217,7 @@ def run_hand_mocap(args, bbox_detector, hand_mocap, visualizer):
         input_data.release()
     cv2.destroyAllWindows()
 
-  
+
 def main():
     args = DemoOptions().parse()
     args.use_smplx = True
@@ -173,7 +240,7 @@ def main():
 
     # run
     run_hand_mocap(args, bbox_detector, hand_mocap, visualizer)
-   
+
 
 if __name__ == '__main__':
     main()

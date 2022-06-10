@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 
 import warnings
-warnings.filterwarnings("ignore", category=UserWarning) 
+warnings.filterwarnings("ignore", category=UserWarning)
 import os
 import os.path as osp
 import sys
@@ -25,7 +25,8 @@ from detectron2.engine import DefaultPredictor
 # from detectron2.data.datasets import register_coco_instances
 
 # Type-aware hand (hand-object) hand detector
-hand_object_detector_path = './detectors/hand_object_detector'
+handmocap_file_dir = os.path.dirname(os.path.abspath(__file__))
+hand_object_detector_path = f'{handmocap_file_dir}/../detectors/hand_object_detector'
 sys.path.append(hand_object_detector_path)
 from model.utils.config import cfg as cfgg
 
@@ -33,7 +34,7 @@ from detectors.hand_object_detector.lib.model.rpn.bbox_transform import clip_box
 from detectors.hand_object_detector.lib.model.roi_layers import nms # might raise segmentation fault at the end of program
 from detectors.hand_object_detector.lib.model.rpn.bbox_transform import bbox_transform_inv
 from detectors.hand_object_detector.lib.model.utils.blob import im_list_to_blob
-from detectors.hand_object_detector.lib.model.faster_rcnn.resnet import resnet as detector_resnet 
+from detectors.hand_object_detector.lib.model.faster_rcnn.resnet import resnet as detector_resnet
 
 
 class Third_View_Detector(BodyPoseEstimator):
@@ -46,13 +47,14 @@ class Third_View_Detector(BodyPoseEstimator):
         super(Third_View_Detector, self).__init__()
         print("Loading Third View Hand Detector")
         self.__load_hand_detector()
-    
+
 
     def __load_hand_detector(self):
          # load cfg and model
         cfg = get_cfg()
-        cfg.merge_from_file("detectors/hand_only_detector/faster_rcnn_X_101_32x8d_FPN_3x_100DOH.yaml")
-        cfg.MODEL.WEIGHTS = 'extra_data/hand_module/hand_detector/model_0529999.pth' # add model weight here
+
+        cfg.merge_from_file(f"{handmocap_file_dir}/../detectors/hand_only_detector/faster_rcnn_X_101_32x8d_FPN_3x_100DOH.yaml")
+        cfg.MODEL.WEIGHTS = f'{handmocap_file_dir}/../extra_data/hand_module/hand_detector/model_0529999.pth' # add model weight here
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.3  # 0.3 , use low thresh to increase recall
         self.hand_detector = DefaultPredictor(cfg)
 
@@ -65,7 +67,7 @@ class Third_View_Detector(BodyPoseEstimator):
 
     def detect_hand_bbox(self, img):
         '''
-            output: 
+            output:
                 body_bbox: [min_x, min_y, width, height]
                 hand_bbox: [x0, y0, x1, y1]
             Note:
@@ -82,8 +84,8 @@ class Third_View_Detector(BodyPoseEstimator):
 
         if num_bbox > 0:
             for idx, body_pose in enumerate(body_pose_list):
-                # By default, we use distance to ankle to distinguish left/right, 
-                # if ankle is unavailable, use elbow, then use shoulder. 
+                # By default, we use distance to ankle to distinguish left/right,
+                # if ankle is unavailable, use elbow, then use shoulder.
                 # The joints used by two arms should exactly the same)
                 dist_left_arm = np.ones((num_bbox,)) * float('inf')
                 dist_right_arm = np.ones((num_bbox,)) * float('inf')
@@ -131,7 +133,7 @@ class Third_View_Detector(BodyPoseEstimator):
 
         assert len(body_bbox_list) == len(hand_bbox_list)
         return body_pose_list, body_bbox_list, hand_bbox_list, raw_hand_bboxes
-    
+
 
 class Ego_Centric_Detector(BodyPoseEstimator):
     """
@@ -143,11 +145,11 @@ class Ego_Centric_Detector(BodyPoseEstimator):
         super(Ego_Centric_Detector, self).__init__()
         print("Loading Ego Centric Hand Detector")
         self.__load_hand_detector()
-    
+
 
     # part of the code comes from https://github.com/ddshan/hand_object_detector
     def __load_hand_detector(self):
-        classes = np.asarray(['__background__', 'targetobject', 'hand']) 
+        classes = np.asarray(['__background__', 'targetobject', 'hand'])
         fasterRCNN = detector_resnet(classes, 101, pretrained=False, class_agnostic=False)
         fasterRCNN.create_architecture()
         self.classes = classes
@@ -158,11 +160,11 @@ class Ego_Centric_Detector(BodyPoseEstimator):
         fasterRCNN.load_state_dict(checkpoint['model'])
         if 'pooling_mode' in checkpoint.keys():
             cfgg.POOLING_MODE = checkpoint['pooling_mode']
-        
+
         fasterRCNN.cuda()
         fasterRCNN.eval()
         self.hand_detector = fasterRCNN
-    
+
 
     # part of the code comes from https://github.com/ddshan/hand_object_detector/demo.py
     def __get_image_blob(self, im):
@@ -214,13 +216,13 @@ class Ego_Centric_Detector(BodyPoseEstimator):
             im_info.resize_(im_info_pt.size()).copy_(im_info_pt)
             gt_boxes.resize_(1, 1, 5).zero_()
             num_boxes.resize_(1).zero_()
-            box_info.resize_(1, 1, 5).zero_() 
+            box_info.resize_(1, 1, 5).zero_()
 
             # forward
             rois, cls_prob, bbox_pred, \
             rpn_loss_cls, rpn_loss_box, \
             RCNN_loss_cls, RCNN_loss_bbox, \
-            rois_label, loss_list = self.hand_detector(im_data, im_info, gt_boxes, num_boxes, box_info) 
+            rois_label, loss_list = self.hand_detector(im_data, im_info, gt_boxes, num_boxes, box_info)
 
             scores = cls_prob.data
             boxes = rois.data[:, :, 1:5]
@@ -269,7 +271,7 @@ class Ego_Centric_Detector(BodyPoseEstimator):
                 # return cls_boxes_np, lr_np
             else:
                 return None, None
-        
+
 
     def detect_hand_bbox(self, img):
         hand_bbox_list = list()
@@ -283,7 +285,7 @@ class Ego_Centric_Detector(BodyPoseEstimator):
         bboxes, hand_types = self.__get_raw_hand_bbox(img)
 
         if bboxes is not None:
-            assert bboxes.shape[0] <= 2, "Ego centric version only supports one person per image"
+            # assert bboxes.shape[0] <= 2, "Ego centric version only supports one person per image"
 
             left_bbox = bboxes[hand_types==0]
             if len(left_bbox)>0:
@@ -292,7 +294,7 @@ class Ego_Centric_Detector(BodyPoseEstimator):
             right_bbox = bboxes[hand_types==1]
             if len(right_bbox)>0:
                 hand_bbox_list[0]['right_hand'] = right_bbox[0]
-            
+
         body_bbox_list = [None, ] * len(hand_bbox_list)
         return None, body_bbox_list, hand_bbox_list, None
 
@@ -312,11 +314,11 @@ class HandBboxDetector(object):
         else :
             print("Invalid view_type")
             assert False
-    
+
 
     def detect_body_bbox(self, img_bgr):
         return self.model.detect_body_pose(img_bgr)
-    
+
 
     def detect_hand_bbox(self, img_bgr):
         """
@@ -325,7 +327,7 @@ class HandBboxDetector(object):
         output:
             body_pose_list: body poses
             bbox_bbox_list: list of bboxes. Each bbox has XHWH form (min_x, min_y, width, height)
-            hand_bbox_list: each element is 
+            hand_bbox_list: each element is
             dict(
                 left_hand = None / [min_x, min_y, width, height]
                 right_hand = None / [min_x, min_y, width, height]
@@ -341,7 +343,7 @@ class HandBboxDetector(object):
                 bbox = raw_hand_bboxes[i]
                 x0, y0, x1, y1 = bbox
                 raw_hand_bboxes[i] = np.array([x0, y0, x1-x0, y1-y0])
-        
+
         # convert hand_bbox_list from (x0, y0, x1, y1) to (x0, y0, w, h)
         for hand_bbox in hand_bbox_list:
             if hand_bbox is not None:

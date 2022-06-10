@@ -1,12 +1,13 @@
 # Original code from SPIN: https://github.com/nkolot/SPIN
 
 
+import os
 import torch
 import numpy as np
 import smplx
 from smplx import SMPL as _SMPL
 from smplx import SMPLX as _SMPLX
-# from bodymocap.models.body_models import SMPLX as _SMPLX        #Use our custom SMPLX 
+# from bodymocap.models.body_models import SMPLX as _SMPLX        #Use our custom SMPLX
 # from smplx.body_models import ModelOutput
 # from bodymocap.models.body_models import ModelOutput
 from smplx.lbs import vertices2joints
@@ -30,7 +31,8 @@ class SMPL(_SMPL):
     def __init__(self, *args, **kwargs):
         super(SMPL, self).__init__(*args, **kwargs)
         joints = [constants.JOINT_MAP[i] for i in constants.JOINT_NAMES]
-        JOINT_REGRESSOR_TRAIN_EXTRA = 'extra_data/body_module/data_from_spin//J_regressor_extra.npy'
+        smpl_models_dir = os.path.dirname(os.path.abspath(__file__))
+        JOINT_REGRESSOR_TRAIN_EXTRA = f'{smpl_models_dir}/../../extra_data/body_module/data_from_spin//J_regressor_extra.npy'
         J_regressor_extra = np.load(JOINT_REGRESSOR_TRAIN_EXTRA)
         self.register_buffer('J_regressor_extra', torch.tensor(J_regressor_extra, dtype=torch.float32))
         self.joint_map = torch.tensor(joints, dtype=torch.long)
@@ -58,7 +60,8 @@ class SMPLX(_SMPLX):
         kwargs['ext'] = 'pkl'       #We have pkl file
         super(SMPLX, self).__init__(*args, **kwargs)
         joints = [constants.JOINT_MAP[i] for i in constants.JOINT_NAMES]
-        JOINT_REGRESSOR_TRAIN_EXTRA_SMPLX = 'extra_data/body_module/J_regressor_extra_smplx.npy'
+        smpl_models_dir = os.path.dirname(os.path.abspath(__file__))
+        JOINT_REGRESSOR_TRAIN_EXTRA_SMPLX = f'{smpl_models_dir}/../../extra_data/body_module/J_regressor_extra_smplx.npy'
         J_regressor_extra = np.load(JOINT_REGRESSOR_TRAIN_EXTRA_SMPLX)           #(9, 10475)
         self.register_buffer('J_regressor_extra', torch.tensor(J_regressor_extra, dtype=torch.float32))
         self.joint_map = torch.tensor(joints, dtype=torch.long)
@@ -81,7 +84,7 @@ class SMPLX(_SMPLX):
         smplx_to_smpl = list(range(0,22)) + [28,43] + list(range(55,76)) # 28 left middle finger , 43: right middle finger 1
         smpl_joints = smpl_output.joints[:,smplx_to_smpl,:] # Convert SMPL-X to SMPL     127 ->45
         joints = torch.cat([smpl_joints, extra_joints], dim=1) # [N, 127, 3]->[N, 45, 3]  + [N, 9, 3]  # SMPL-X has more joints. should convert 45
-        joints = joints[:, self.joint_map, :]     
+        joints = joints[:, self.joint_map, :]
 
         # Hand joints
         smplx_hand_to_panoptic = [0, 13,14,15,16, 1,2,3,17, 4,5,6,18, 10,11,12,19, 7,8,9,20] #Wrist Thumb to Pinky
@@ -277,8 +280,8 @@ class SMPLX(_SMPLX):
 19	right_elbow',
 20	left_wrist',
 21	right_wrist',
-22	
-23	
+22
+23
 24	nose',
 25	right_eye',
 26	left_eye',

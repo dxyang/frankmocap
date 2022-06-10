@@ -13,11 +13,11 @@ from pytorch3d.renderer.mesh import Textures
 from pytorch3d.renderer import (
     PerspectiveCameras,
     FoVOrthographicCameras,
-    PointLights, 
-    RasterizationSettings, 
-    MeshRenderer, 
+    PointLights,
+    RasterizationSettings,
+    MeshRenderer,
     BlendParams,
-    MeshRasterizer,  
+    MeshRasterizer,
     SoftPhongShader,
 )
 
@@ -83,11 +83,11 @@ class Pytorch3dRenderer(object):
 
         renderer = MeshRenderer(
             rasterizer=MeshRasterizer(
-                cameras=cameras, 
+                cameras=cameras,
                 raster_settings=raster_settings
             ),
             shader=SoftPhongShader(
-                device=self.device, 
+                device=self.device,
                 cameras=cameras,
                 lights=lights,
                 blend_params=blend_params
@@ -95,7 +95,7 @@ class Pytorch3dRenderer(object):
         )
 
         return renderer
-    
+
 
     def render(self, verts, faces, bg_img):
         verts = verts.copy()
@@ -123,7 +123,7 @@ class Pytorch3dRenderer(object):
                 # print("Using large size renderer")
                 render_size = self.render_size_large
                 renderer = self.renderer_large
-        
+
         # padding the tight bbox
         margin = int(max(width, height) * 0.1)
         x0 = max(0, x0-margin)
@@ -185,9 +185,9 @@ class Pytorch3dRenderer(object):
 
         alpha = rend_img[:, :, 3:4]
         alpha[alpha>0] = 1.0
-        
 
-        rend_img = rend_img[:, :, :3] 
+
+        rend_img = rend_img[:, :, :3]
         maxColor = rend_img.max()
         rend_img *= 255 /maxColor #Make sure <1.0
         rend_img = rend_img[:, :, ::-1]

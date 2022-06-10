@@ -13,7 +13,8 @@ import torchvision.transforms as transforms
 # Code from https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch/blob/master/demo.py
 
 # 2D body pose estimator
-pose2d_estimator_path = './detectors/body_pose_estimator'
+bodymocap_file_dir = os.path.dirname(os.path.abspath(__file__))
+pose2d_estimator_path = f'{bodymocap_file_dir}/../detectors/body_pose_estimator'
 sys.path.append(pose2d_estimator_path)
 from detectors.body_pose_estimator.pose2d_models.with_mobilenet import PoseEstimationWithMobileNet
 from detectors.body_pose_estimator.modules.load_state import load_state
@@ -30,20 +31,21 @@ class BodyPoseEstimator(object):
     def __init__(self):
         print("Loading Body Pose Estimator")
         self.__load_body_estimator()
-    
+
 
     def __load_body_estimator(self):
         net = PoseEstimationWithMobileNet()
-        pose2d_checkpoint = "./extra_data/body_module/body_pose_estimator/checkpoint_iter_370000.pth"
+
+        pose2d_checkpoint = f"{bodymocap_file_dir}/../extra_data/body_module/body_pose_estimator/checkpoint_iter_370000.pth"
         checkpoint = torch.load(pose2d_checkpoint, map_location='cpu')
         load_state(net, checkpoint)
         net = net.eval()
         net = net.cuda()
         self.model = net
-    
+
 
     #Code from https://github.com/Daniil-Osokin/lightweight-human-pose-estimation.pytorch/demo.py
-    def __infer_fast(self, img, input_height_size, stride, upsample_ratio, 
+    def __infer_fast(self, img, input_height_size, stride, upsample_ratio,
         cpu=False, pad_value=(0, 0, 0), img_mean=(128, 128, 128), img_scale=1/256):
         height, width, _ = img.shape
         scale = input_height_size / height
@@ -68,7 +70,7 @@ class BodyPoseEstimator(object):
         pafs = cv2.resize(pafs, (0, 0), fx=upsample_ratio, fy=upsample_ratio, interpolation=cv2.INTER_CUBIC)
 
         return heatmaps, pafs, scale, pad
-    
+
     def detect_body_pose(self, img):
         """
         Output:
@@ -79,7 +81,7 @@ class BodyPoseEstimator(object):
         orig_img = img.copy()
 
         # forward
-        heatmaps, pafs, scale, pad = self.__infer_fast(img, 
+        heatmaps, pafs, scale, pad = self.__infer_fast(img,
             input_height_size=256, stride=stride, upsample_ratio=upsample_ratio)
 
         total_keypoints_num = 0
@@ -87,12 +89,12 @@ class BodyPoseEstimator(object):
         num_keypoints = Pose.num_kpts
         for kpt_idx in range(num_keypoints):  # 19th for bg
             total_keypoints_num += extract_keypoints(heatmaps[:, :, kpt_idx], all_keypoints_by_type, total_keypoints_num)
-        
+
         pose_entries, all_keypoints = group_keypoints(all_keypoints_by_type, pafs, demo=True)
         for kpt_id in range(all_keypoints.shape[0]):
             all_keypoints[kpt_id, 0] = (all_keypoints[kpt_id, 0] * stride / upsample_ratio - pad[1]) / scale
             all_keypoints[kpt_id, 1] = (all_keypoints[kpt_id, 1] * stride / upsample_ratio - pad[0]) / scale
-        
+
         '''
         # print(len(pose_entries))
         if len(pose_entries)>1:
@@ -110,7 +112,7 @@ class BodyPoseEstimator(object):
                 if pose_entries[n][kpt_id] != -1.0:  # keypoint was found
                     pose_keypoints[kpt_id, 0] = int(all_keypoints[int(pose_entries[n][kpt_id]), 0])
                     pose_keypoints[kpt_id, 1] = int(all_keypoints[int(pose_entries[n][kpt_id]), 1])
-            pose = Pose(pose_keypoints, pose_entries[n][18]) 
+            pose = Pose(pose_keypoints, pose_entries[n][18])
             current_poses.append(pose.keypoints)
             current_bbox.append(np.array(pose.bbox))
 

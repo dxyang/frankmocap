@@ -21,7 +21,7 @@ def get_kinematic_map(smplx_model, dst_idx):
 
 def __transfer_rot(body_pose_rotmat, part_rotmat, kinematic_map, transfer_type):
 
-    rotmat= body_pose_rotmat[0] 
+    rotmat= body_pose_rotmat[0]
     parent_id = 0
     while parent_id in kinematic_map:
         child_id = kinematic_map[parent_id]
@@ -39,7 +39,7 @@ def __transfer_rot(body_pose_rotmat, part_rotmat, kinematic_map, transfer_type):
 
 
 def transfer_rotation(
-    smplx_model, body_pose, part_rot, part_idx, 
+    smplx_model, body_pose, part_rot, part_idx,
     transfer_type="g2l", result_format="rotmat"):
 
     assert transfer_type in ["g2l", "l2g"]
@@ -51,7 +51,7 @@ def transfer_rotation(
     if isinstance(body_pose, np.ndarray):
         body_pose = torch.from_numpy(body_pose)
         return_np = True
-    
+
     if isinstance(part_rot, np.ndarray):
         part_rot = torch.from_numpy(part_rot)
         return_np = True
@@ -81,7 +81,7 @@ def transfer_rotation(
     part_rot_trans = __transfer_rot(
         body_pose_rotmat, part_rotmat, kinematic_map, transfer_type)
 
-    if result_format == 'rotmat':    
+    if result_format == 'rotmat':
         return_value = part_rot_trans
     else:
         part_rot_aa = gu.rotation_matrix_to_angle_axis(part_rot_trans)
@@ -99,8 +99,8 @@ def integration_copy_paste(pred_body_list, pred_hand_list, smplx_model, image_sh
         if body_info is None:
             integral_output_list.append(None)
             continue
-    
-        # copy and paste 
+
+        # copy and paste
         pred_betas = torch.from_numpy(body_info['pred_betas']).cuda()
         pred_rotmat = torch.from_numpy(body_info['pred_rotmat']).cuda()
 
@@ -132,17 +132,17 @@ def integration_copy_paste(pred_body_list, pred_hand_list, smplx_model, image_sh
         pred_aa = gu.rotation_matrix_to_angle_axis(pred_rotmat).cuda()
         pred_aa = pred_aa.reshape(pred_aa.shape[0], 72)
         smplx_output = smplx_model(
-            betas = pred_betas, 
-            body_pose = pred_aa[:,3:], 
+            betas = pred_betas,
+            body_pose = pred_aa[:,3:],
             global_orient = pred_aa[:,:3],
-            right_hand_pose = right_hand_pose, 
+            right_hand_pose = right_hand_pose,
             left_hand_pose= left_hand_pose,
             pose2rot = True)
 
         pred_vertices = smplx_output.vertices
         pred_vertices = pred_vertices[0].detach().cpu().numpy()
         pred_body_joints = smplx_output.joints
-        pred_body_joints = pred_body_joints[0].detach().cpu().numpy()   
+        pred_body_joints = pred_body_joints[0].detach().cpu().numpy()
         pred_lhand_joints = smplx_output.left_hand_joints
         pred_lhand_joints = pred_lhand_joints[0].detach().cpu().numpy()
         pred_rhand_joints = smplx_output.right_hand_joints
@@ -177,6 +177,7 @@ def integration_copy_paste(pred_body_list, pred_hand_list, smplx_model, image_sh
         pred_body_joints_img = convert_bbox_to_oriIm(
             pred_body_joints_bbox, bbox_scale_ratio, bbox_top_left, image_shape[1], image_shape[0])
         integral_output['pred_body_joints_img'] = pred_body_joints_img
+        integral_output['pred_body_joints_smpl'] = pred_body_joints
 
         # convert left /right joints to original image space (X, Y are aligned to image)
         pred_lhand_joints_bbox = convert_smpl_to_bbox(
@@ -184,12 +185,14 @@ def integration_copy_paste(pred_body_list, pred_hand_list, smplx_model, image_sh
         pred_lhand_joints_img = convert_bbox_to_oriIm(
             pred_lhand_joints_bbox, bbox_scale_ratio, bbox_top_left, image_shape[1], image_shape[0])
         integral_output['pred_lhand_joints_img'] = pred_lhand_joints_img
+        integral_output['pred_lhand_joints_smpl'] = pred_lhand_joints
 
         pred_rhand_joints_bbox = convert_smpl_to_bbox(
             pred_rhand_joints, camScale, camTrans)
         pred_rhand_joints_img = convert_bbox_to_oriIm(
             pred_rhand_joints_bbox, bbox_scale_ratio, bbox_top_left, image_shape[1], image_shape[0])
         integral_output['pred_rhand_joints_img'] = pred_rhand_joints_img
+        integral_output['pred_rhand_joints_smpl'] = pred_rhand_joints
 
         # keep hand info
         r_hand_local_orient_body = body_info['pred_rotmat'][:, 21] # rot-mat
