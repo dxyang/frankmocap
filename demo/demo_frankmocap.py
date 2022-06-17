@@ -232,8 +232,6 @@ def run_frank_mocap(args, bbox_detector, body_mocap, hand_mocap, visualizer):
             res_img = res_img.astype(np.uint8)
             ImShow(res_img)
 
-        import pdb; pdb.set_trace()
-
         # save result image
         if args.out_dir is not None:
             demo_utils.save_res_img(args.out_dir, image_path, res_img)
