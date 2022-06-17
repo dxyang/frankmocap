@@ -154,7 +154,7 @@ class Ego_Centric_Detector(BodyPoseEstimator):
         fasterRCNN.create_architecture()
         self.classes = classes
 
-        checkpoint_path = "extra_data/hand_module/hand_detector/faster_rcnn_1_8_132028.pth"
+        checkpoint_path = f"{handmocap_file_dir}/../extra_data/hand_module/hand_detector/faster_rcnn_1_8_132028.pth"
         checkpoint = torch.load(checkpoint_path)
         assert osp.exists(checkpoint_path), "Hand checkpoint does not exist"
         fasterRCNN.load_state_dict(checkpoint['model'])

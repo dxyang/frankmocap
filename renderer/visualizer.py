@@ -146,7 +146,7 @@ class Visualizer(object):
         return overlaidImg
 
 
-    def _visualize_screenless_naive(self, meshList, skelList=None, body_bbox_list=None, img_original=None, show_side = False, vis=False, maxHeight = 1440):
+    def _visualize_screenless_naive(self, meshList, skelList=None, body_bbox_list=None, img_original=None, show_side = False, vis=False, maxHeight = 1920):
 
         """
             args:
