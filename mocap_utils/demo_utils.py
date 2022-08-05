@@ -51,6 +51,8 @@ def __get_input_type(args):
             input_type ='image_dir'
     elif args.input_path =='webcam':
         input_type ='webcam'
+    elif args.input_path == "realsense":
+        input_type="realsense"
     else:
         assert False, "Unknown input path. It should be an image," + \
             "or an image folder, or a video file, or \'webcam\' "
@@ -131,7 +133,13 @@ def setup_input(args):
             ))
         return input_type, input_data
 
+    elif input_type == 'realsense':
+        from utils.realsense_utils import RealSenseInterface
+        rsi = RealSenseInterface()
+        return input_type, rsi
+
     else:
+        import pdb; pdb.set_trace()
         assert False, "Unknown input type"
 
 
@@ -298,8 +306,11 @@ def save_pred_to_pkl(
     print(f"Prediction saved: {pkl_path}")
 
 
-def save_res_img(out_dir, image_path, res_img):
-    out_dir = osp.join(out_dir, "rendered")
+def save_res_img(out_dir, image_path, res_img, append_str: str = None):
+    if append_str is not None:
+        out_dir = osp.join(out_dir, f"rendered_{append_str}")
+    else:
+        out_dir = osp.join(out_dir, f"rendered")
     img_name = osp.basename(image_path)
     img_name = img_name[:-4] + '.jpg'           #Always save as jpg
     res_img_path = osp.join(out_dir, img_name)

@@ -86,6 +86,7 @@ class Visualizer(object):
         vis_raw_hand_bbox = True,
         vis_body_pose = True,
         vis_hand_bbox = True,
+        black_bg = False,
     ):
          # init
         res_img = input_img.copy()
@@ -110,13 +111,16 @@ class Visualizer(object):
 
         # render predicted meshes
         if pred_mesh_list is not None:
-            rend_img = self.__render_pred_verts(input_img, pred_mesh_list)
+            if black_bg:
+                rend_img = self.__render_pred_verts(np.zeros_like(input_img), pred_mesh_list)
+            else:
+                rend_img = self.__render_pred_verts(input_img, pred_mesh_list)
             if rend_img is not None:
                 try:
                     res_img = np.concatenate((res_img, rend_img), axis=1)
                 except:
                     import pdb; pdb.set_trace()
-            # res_img = rend_img
+            res_img = rend_img
 
 
         return res_img

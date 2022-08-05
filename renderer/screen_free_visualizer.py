@@ -41,11 +41,11 @@ class Visualizer(object):
         assert renderer_backend in ['opendr', 'pytorch3d']
         if renderer_backend == 'opendr':
             self.renderer = OpendrRenderer(
-                img_size=self.input_size, 
+                img_size=self.input_size,
                 mesh_color=colors['light_purple'])
         else:
             self.renderer = Pytorch3dRenderer(
-                img_size=self.input_size, 
+                img_size=self.input_size,
                 mesh_color=colors['light_purple'])
 
 
@@ -67,9 +67,9 @@ class Visualizer(object):
         return res_img
 
 
-    def visualize(self, 
-        input_img, 
-        hand_bbox_list = None, 
+    def visualize(self,
+        input_img,
+        hand_bbox_list = None,
         body_bbox_list = None,
         body_pose_list = None,
         raw_hand_bboxes = None,
@@ -98,11 +98,11 @@ class Visualizer(object):
         # draw hand bbox
         if hand_bbox_list is not None:
             res_img = draw_hand_bbox(res_img, hand_bbox_list)
-        
+
         # render predicted meshes
         if pred_mesh_list is not None:
-            rend_img = self.__render_pred_verts(input_img, pred_mesh_list)
-            res_img = np.concatenate((res_img, rend_img), axis=1)
-            # res_img = rend_img
-        
+            rend_img = self.__render_pred_verts(np.zeros_like(input_img), pred_mesh_list)
+            # res_img = np.concatenate((res_img, rend_img), axis=1)
+            res_img = rend_img
+
         return res_img
