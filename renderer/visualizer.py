@@ -45,6 +45,7 @@ class Visualizer(object):
 
         #Screenless rendering
         if rendererType =='opengl':
+            import pdb; pdb.set_trace()
             self.renderer = meshRenderer.meshRenderer()
             self.renderer.setRenderMode('geo')
             self.renderer.offscreenMode(True)
@@ -143,6 +144,7 @@ class Visualizer(object):
             self._visualize_gui_naive(pred_mesh_list_offset, img_original=res_img)
             overlaidImg = None
         else:
+            # @dxy this is the code path we go down!
             self._visualize_screenless_naive(pred_mesh_list_offset, img_original=res_img)
             overlaidImg = self.renderout['render_camview']
             # sideImg = self.renderout['render_sideview']
@@ -213,7 +215,7 @@ class Visualizer(object):
         for mesh in meshList:
             self.renderer.add_mesh(mesh['ver'],mesh['f'])
         self.renderer.showBackground(True)
-        self.renderer.setWorldCenterBySceneCenter()
+        # self.renderer.setWorldCenterBySceneCenter()
         self.renderer.setCameraViewMode("cam")
         # self.renderer.setViewportSize(img_original_resized.shape[1], img_original_resized.shape[0])
 
@@ -242,6 +244,8 @@ class Visualizer(object):
         if show_side:
             self.renderout['render_sideview'] = sideImg
 
+    def get_matrices(self):
+        return self.renderer.getMatrices()
 
     def _visualize_gui_naive(self, meshList, skelList=None, body_bbox_list=None, img_original=None, normal_compute=True):
         """

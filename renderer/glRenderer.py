@@ -60,7 +60,7 @@ class glRenderer:
         self.backgroundTextureID = glGenTextures(1)
         K = np.array([[2000, 0, 960],[0, 2000, 540],[0,0,1]])       #MTC default camera. for 1920 x 1080 input image
         self.camView_K = K
-        
+
         # Inner storage for buffer data
         self.vertex_data = None
         self.vertex_dim = None
@@ -102,12 +102,12 @@ class glRenderer:
 
 
         self.bOrthoCam = True
-        
+
         glutMouseFunc(self.mouseButton)
         glutMotionFunc(self.mouseMotion)
         glutDisplayFunc(self.display)
         glutReshapeFunc(self.reshape)
-    
+
     def initShaderProgram(self, program_files):
          # Init shader programs
         shader_list = []
@@ -157,14 +157,14 @@ class glRenderer:
                 break
             glutPostRedisplay()
             glutMainLoopEvent()
-            iterNum+=1  
+            iterNum+=1
             if iterNum>20:
                 print("Wraning: Cannot resize the gl window")
                 break
 
         # print("{} refreshing is done to resize window".format(iterNum))
 
-       
+
     def setViewportSize(self,new_width, new_height):
         if new_width != self.width or  new_height!=self.height:
             self.width = new_width
@@ -192,13 +192,26 @@ class glRenderer:
 
         glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
-        gluLookAt(0, 0, 0, 0, 0, 1, 0, -1, 0)
+        gluLookAt(
+            0, 0, 0,
+            0, 0, 1,
+            0, -1, 0
+        )
+
         # glMultMatrixd(camMatrix.T)
-    
+
+
+    def getMatrices(self):
+        mvMat = glGetFloatv(GL_MODELVIEW_MATRIX)
+        pMat = glGetFloatv(GL_PROJECTION_MATRIX)
+        mvpMat = pMat*mvMat
+
+        return mvMat, pMat, mvpMat
+
 
     # Show the world in a camera cooridnate (defined by K)
     def setCameraView(self):
-     
+
         invR = np.eye(3)
         invT = np.zeros((3, 1))
         # invT[2] = 400
@@ -256,13 +269,13 @@ class glRenderer:
         self.m_zoom = z
 
     def setSideView(self):
-        
+
         if self.m_meshCenter is None:
             self.setWorldCenterBySceneCenter()
 
         # self.m_zoom =400
 
-        self.m_yRotate = 0 
+        self.m_yRotate = 0
         self.m_xRotate = 90 #+ self.counter
 
 
@@ -271,7 +284,7 @@ class glRenderer:
         #Zoom out first
         glTranslatef(0,0,self.m_zoom)
         print(f"Zoom: {self.m_zoom}")
-        
+
         #Rotate (to this end, around the center point)
         glRotatef( -self.m_yRotate, 1.0, 0.0, 0.0)
         glRotatef( -self.m_xRotate, 0.0, 1.0, 0.0)
@@ -309,15 +322,15 @@ class glRenderer:
         # print(f"{self.m_xTrans}, {self.m_yTrans}, {self.m_zTrans}, {self.m_zoom}")
         # glTranslatef(0,0,self.m_zoom)
         glTranslatef( self.m_xTrans,  self.m_yTrans, self.m_zTrans)
-        
+
 
     def showBackground(self, bShow):
         self.bShowBackground = bShow
 
     def setBackgroundTexture(self,img):
         self.data_texture = img
-    
-    
+
+
     # 3x3 intrinsic camera matrix
     def setCamView_K(self, K):
         self.camView_K = K
@@ -385,7 +398,7 @@ class glRenderer:
         glEnable(GL_CULL_FACE)
         glEnable(GL_DEPTH_TEST)
         glDisable(GL_TEXTURE_2D)
-        
+
     def drawBackgroundPersp(self):
 
         if self.data_texture is None:
@@ -502,7 +515,7 @@ class glRenderer:
 
         rgb = cv2.cvtColor(rgb, cv2.COLOR_RGBA2BGRA)
         return rgb
-    
+
     def get_screen_color_ibgr(self):
         glReadBuffer(GL_BACK)   #GL_BACK is Default in double buffering
         data = glReadPixels(0, 0, self.width, self.height, GL_RGBA, GL_FLOAT, outputType=None)
@@ -512,7 +525,7 @@ class glRenderer:
         rgb = cv2.cvtColor(rgb, cv2.COLOR_RGBA2BGR)
         rgb = (rgb*255).astype(np.uint8)
         return rgb
-    
+
     def setCameraViewMode(self, viewmode="cam"):
         """
         viewmode
@@ -530,7 +543,7 @@ class glRenderer:
         z = data.reshape(self.height, self.width)
         z = np.flip(z, 0)
         return z
-    
+
     def drawFloor(self):
         glDisable(GL_LIGHTING)
 
@@ -571,10 +584,10 @@ class glRenderer:
                 glEnd()
 
         glEnable(GL_LIGHTING)
-        
-                
+
+
     def set_mesh(self, input_vertices, input_faces, color=None):
-          
+
         #Compute normal
         if True:#bComputeNormal:
         # print("## setMeshData: Computing face normals automatically.")
@@ -584,19 +597,19 @@ class glRenderer:
         if input_vertices.dtype != np.dtype('float64'):
             input_vertices = input_vertices.astype(np.float64)      #Should be DOUBLE
 
-        #Change the vertex and 
+        #Change the vertex and
         # dp_vertex = vertices[self.dp_vertexIndices][0]  #(7829,3)        #Considering repeatation
 
-        # if colormode=='normal': #segment   
+        # if colormode=='normal': #segment
         #     self.color_data = self.dp_color_seg
         # else:
         #     assert False
-        
+
         input_faces_ = input_faces.flatten()
 
         if False:#Without index buffer
-            self.vertex_data = input_vertices[input_faces_,:]   
-            self.normal_data = input_normal[0][input_faces_,:]  
+            self.vertex_data = input_vertices[input_faces_,:]
+            self.normal_data = input_normal[0][input_faces_,:]
 
         else: #With index buffer
             self.vertex_data = input_vertices   #(6870,3)
@@ -609,7 +622,7 @@ class glRenderer:
 
             self.meshindex_data = input_faces_
             self.meshindex_data = self.meshindex_data.astype(np.int32)      #Should be DOUBLE
-            
+
 
         self.vertex_dim = self.vertex_data.shape[1]
         self.n_vertices = self.vertex_data.shape[0]
@@ -630,7 +643,7 @@ class glRenderer:
 
     def clear_mesh(self):
         """
-        Clear up all mesh 
+        Clear up all mesh
         """
         self.vertex_data = None
         self.normal_data = None
@@ -646,7 +659,7 @@ class glRenderer:
             input_faces (np.ndarray): (faceNum, 3).
         """
 
-          
+
         #Compute normal
         if True:#bComputeNormal:
             vertices_temp = input_vertices[np.newaxis,:,:]
@@ -655,13 +668,13 @@ class glRenderer:
         if input_vertices.dtype != np.dtype('float64'):
             input_vertices = input_vertices.astype(np.float64)      #Should be DOUBLE
 
-        #Change the vertex and 
+        #Change the vertex and
         # dp_vertex = vertices[self.dp_vertexIndices][0]  #(7829,3)        #Considering repeatation
-        # if colormode=='normal': #segment   
+        # if colormode=='normal': #segment
         #     self.color_data = self.dp_color_seg
         # else:
         #     assert False
-        
+
         input_faces_ = input_faces.flatten()
 
         if self.vertex_data is None:
@@ -675,7 +688,7 @@ class glRenderer:
 
             self.meshindex_data = input_faces_
             self.meshindex_data = self.meshindex_data.astype(np.int32)      #Should be DOUBLE
-        
+
         else:       #Add the data
             existingVerNum = self.vertex_data.shape[0]
             input_faces_ += existingVerNum
@@ -690,10 +703,10 @@ class glRenderer:
                 color_data = np.ones(input_vertices.shape)   #(6870,3)
             else:
                 color_data = np.tile(color, (input_vertices.shape[0], 1) )   #(6870,3)
-            
+
             self.color_data =  np.concatenate( (self.color_data, color_data), axis=0)     #(6870,3)
-            
-            
+
+
         self.vertex_dim = self.vertex_data.shape[1]
         self.n_vertices = self.vertex_data.shape[0]
 
@@ -714,11 +727,12 @@ class glRenderer:
 
 
     def drawMesh(self):
+        import pdb; pdb.set_trace()
         # self.draw_init()
 
         glColor3f(1,1,0)
         glUseProgram(self.program)
-        
+
         mvMat = glGetFloatv(GL_MODELVIEW_MATRIX)
         pMat = glGetFloatv(GL_PROJECTION_MATRIX)
         # mvpMat = pMat*mvMat
@@ -793,16 +807,16 @@ class glRenderer:
             # self.setCameraViewOrth()
             self.setSideView()
             # self.setFree3DView()
-            # 
+            #
         elif self.m_viewmode =="free":
             self.setFree3DView()
         else:
             assert False
-            
+
         glClearColor(1.0, 1.0, 1.0, 1.0)
         # glClearColor(0.0, 0.0, 0.0, 1.0)
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-    
+
         # self.RenderDomeFloor()
         # glColor3f(0,1,0)
         # glTranslated(500,0,0)
@@ -882,7 +896,7 @@ def loadSMPL():
         -6.1498e-02,  7.6002e-02, -2.3677e-01, -3.5770e-02, -7.9627e-02,
          1.5318e-01, -1.4370e-01, -4.8611e-02, -1.3202e-01, -6.9166e-02,
          1.3943e-01,  1.9009e-01])
-    
+
     # pose = np.array([ 2.2487712, 0.28050578,-2.1792502 , -0.10493116,  0.01239435,  0.02972716,  0.08953293,-0.10654334, -0.00504329,  0.1593982 ,  0.01969572,  0.08852343, 0.09914812,  0.12574932, -0.02512331, -0.01473788, -0.04562924, 0.04665173,  0.0474331 , -0.0616711 , -0.00967203,  0.05010046, 0.1775912 , -0.08904129, -0.06684269, -0.14769007,  0.10105508, 0.0688806 , -0.02561731,  0.00964942, -0.1680568 ,  0.14983022, 0.20799895,  0.06796098,  0.10919931, -0.20863819,  0.00823393,-0.17863278,  0.09926094,  0.01495223, -0.08837841, -0.28607178,-0.11105742,  0.24558525,  0.06441574,  0.299364  , -0.15079273, 0.02175152,  0.20322715, -0.45768845, -0.9899641 , -0.06223915, 0.5227556 ,  0.6171622 ,  0.1368894 , -1.3889741 ,  0.19389033,-0.24303943,  1.1106223 , -0.2655932 , -0.6844785 , -0.17720126,-0.1870633 , -0.30705413,  0.08231031,  0.1118647 ,  0.02531371, 0.00614487, -0.05623743, -0.01657844,  0.07361342,  0.04853413])
 
     """Converting SMPL parameters to vertices"""
@@ -917,7 +931,7 @@ def loadSMPL():
 
     # vertexColor = densepose_info['All_U_norm']     #(13774,1)
     vertexColor = densepose_info['All_V_norm']     #(13774,1)
-    vertexColor =  np.repeat(vertexColor,3,axis=1) 
+    vertexColor =  np.repeat(vertexColor,3,axis=1)
 
     # vertexColor[vertexColor!=2]*=0
     # vertexColor[vertexColor==2]=24

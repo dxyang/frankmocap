@@ -48,8 +48,13 @@ class meshRenderer(glRenderer):
         self.initShaderProgram(self.program_files[render_mode])
 
 
-    def drawMesh(self):
+    def getMatrices(self):
+        mvMat = glGetFloatv(GL_MODELVIEW_MATRIX)
+        pMat = glGetFloatv(GL_PROJECTION_MATRIX)
+        mvpMat = pMat*mvMat
+        return mvMat, pMat, mvpMat
 
+    def drawMesh(self):
         if self.vertex_dim is None:
             return
         # self.draw_init()
