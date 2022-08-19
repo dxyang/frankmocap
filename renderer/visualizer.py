@@ -20,7 +20,7 @@ from renderer.image_utils import draw_raw_bbox, draw_hand_bbox, draw_body_bbox, 
 
 class Visualizer(object):
     """
-   Visualizer to visuzlie SMPL reconstruction output from HMR family (HMR, SPIN, EFT)
+    Visualizer to visuzlie SMPL reconstruction output from HMR family (HMR, SPIN, EFT)
 
     Args:
         reconstruction output
@@ -45,7 +45,6 @@ class Visualizer(object):
 
         #Screenless rendering
         if rendererType =='opengl':
-            import pdb; pdb.set_trace()
             self.renderer = meshRenderer.meshRenderer()
             self.renderer.setRenderMode('geo')
             self.renderer.offscreenMode(True)
@@ -121,8 +120,7 @@ class Visualizer(object):
                     res_img = np.concatenate((res_img, rend_img), axis=1)
                 except:
                     import pdb; pdb.set_trace()
-            res_img = rend_img
-
+            # res_img = rend_img
 
         return res_img
 

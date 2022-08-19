@@ -102,7 +102,7 @@ class Visualizer(object):
         # render predicted meshes
         if pred_mesh_list is not None:
             rend_img = self.__render_pred_verts(np.zeros_like(input_img), pred_mesh_list)
-            # res_img = np.concatenate((res_img, rend_img), axis=1)
-            res_img = rend_img
+            res_img = np.concatenate((res_img, rend_img), axis=1)
+            # res_img = rend_img
 
         return res_img

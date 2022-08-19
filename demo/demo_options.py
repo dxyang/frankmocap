@@ -64,7 +64,7 @@ class DemoOptions():
         return self.opt
 
     def get_default(self, video_path: str = None, is_third_person: bool = True):
-        self.opt = self.parser.parse_args(args=None)
+        self.opt = self.parser.parse_args(args=[])
         self.opt.checkpoint_body_smpl = './frankmocap/extra_data/body_module/pretrained_weights/2020_05_31-00_50_43-best-51.749683916568756.pt'
         self.opt.checkpoint_body_smplx = './frankmocap/extra_data/body_module/pretrained_weights/smplx-03-28-46060-w_spin_mlc3d_46582-2089_2020_03_28-21_56_16.pt'
         self.opt.checkpoint_hand = './frankmocap/extra_data/hand_module/pretrained_weights/pose_shape_best.pth'
